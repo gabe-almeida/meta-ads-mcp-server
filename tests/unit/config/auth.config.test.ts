@@ -24,6 +24,7 @@ describe('Auth Config', () => {
     process.env.META_API_VERSION = 'v19.0';
 
     const config = loadAuthConfig();
+    assert.ok(config, 'Config should not be null');
     assert.strictEqual(config.META_ACCESS_TOKEN, 'test_token_123');
     assert.strictEqual(config.META_API_VERSION, 'v19.0');
   });
@@ -33,19 +34,16 @@ describe('Auth Config', () => {
     delete process.env.META_API_VERSION;
 
     const config = loadAuthConfig();
+    assert.ok(config, 'Config should not be null');
     assert.strictEqual(config.META_ACCESS_TOKEN, 'test_token_123');
     assert.ok(config.META_API_VERSION); // Should have a default
   });
 
-  it('should throw error if META_ACCESS_TOKEN is missing', () => {
+  it('should return null if META_ACCESS_TOKEN is missing', () => {
     delete process.env.META_ACCESS_TOKEN;
 
-    assert.throws(
-      () => loadAuthConfig(),
-      (error: any) => {
-        return error.message.includes('META_ACCESS_TOKEN');
-      }
-    );
+    const config = loadAuthConfig();
+    assert.strictEqual(config, null, 'Should return null when token is missing');
   });
 
   it('should handle META_APP_ID environment variable', () => {
@@ -53,6 +51,7 @@ describe('Auth Config', () => {
     process.env.META_APP_ID = 'test_app_id';
 
     const config = loadAuthConfig();
+    assert.ok(config, 'Config should not be null');
     assert.strictEqual(config.META_APP_ID, 'test_app_id');
   });
 
@@ -61,6 +60,7 @@ describe('Auth Config', () => {
     process.env.AUTH_MODE = 'oauth';
 
     const config = loadAuthConfig();
+    assert.ok(config, 'Config should not be null');
     assert.strictEqual(config.AUTH_MODE, 'oauth');
   });
 });

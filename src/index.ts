@@ -24,14 +24,26 @@ async function main() {
     logger.info('Loading authentication configuration...');
     const authConfig = loadAuthConfig();
 
-    // Create Meta API configuration
-    const metaConfig = createMetaConfig(authConfig.META_ACCESS_TOKEN, {
-      apiVersion: authConfig.META_API_VERSION,
-    });
+    // Track if token is available
+    let metaConfig = null;
+    let campaignTools = null;
+    const hasToken = authConfig !== null;
 
-    logger.info('Meta Ads API configured', {
-      apiVersion: metaConfig.apiVersion || 'default',
-    });
+    if (hasToken) {
+      // Create Meta API configuration
+      metaConfig = createMetaConfig(authConfig.META_ACCESS_TOKEN, {
+        apiVersion: authConfig.META_API_VERSION,
+      });
+
+      logger.info('Meta Ads API configured', {
+        apiVersion: metaConfig.apiVersion || 'default',
+      });
+
+      // Initialize campaign tools
+      campaignTools = new CampaignTools(metaConfig);
+    } else {
+      logger.warn('No META_ACCESS_TOKEN found - server will start but tools will require configuration');
+    }
 
     // Initialize MCP Server
     const server = new Server(
@@ -45,9 +57,6 @@ async function main() {
         },
       }
     );
-
-    // Initialize campaign tools
-    const campaignTools = new CampaignTools(metaConfig);
 
     // Register tool list handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -68,6 +77,39 @@ async function main() {
         const { name, arguments: args } = request.params;
 
         logger.debug('Tool called', { name, args });
+
+        // Check if token is configured
+        if (!hasToken || !campaignTools) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    success: false,
+                    error: 'Meta Ads MCP Server is not configured with an access token',
+                    help: {
+                      message: 'To use Meta Ads tools, you need to configure a Meta access token.',
+                      steps: [
+                        '1. Get a token from Meta Graph API Explorer: https://developers.facebook.com/tools/explorer/',
+                        '2. Select your app or create a new one',
+                        '3. Request these permissions: ads_management, ads_read, business_management',
+                        '4. Generate a User Access Token',
+                        '5. Add to Claude Desktop config:',
+                        '   "env": { "META_ACCESS_TOKEN": "your_token_here" }',
+                        '6. Restart Claude Desktop'
+                      ],
+                      documentation: 'See docs/SETUP.md for detailed instructions'
+                    }
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
 
         switch (name) {
           case 'list_campaigns':

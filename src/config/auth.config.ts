@@ -17,9 +17,9 @@ const AuthConfigSchema = z.object({
 
 /**
  * Load and validate authentication configuration from environment
- * @throws {z.ZodError} if configuration is invalid
+ * Returns config with optional token (allows server to start without token)
  */
-export function loadAuthConfig(): AuthConfig {
+export function loadAuthConfig(): AuthConfig | null {
   try {
     const config = AuthConfigSchema.parse({
       META_ACCESS_TOKEN: process.env.META_ACCESS_TOKEN,
@@ -32,6 +32,15 @@ export function loadAuthConfig(): AuthConfig {
     return config;
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // Check if it's just a missing token
+      const tokenError = error.errors.find(err => err.path[0] === 'META_ACCESS_TOKEN');
+      if (tokenError && !process.env.META_ACCESS_TOKEN) {
+        // Return null to indicate no token configured
+        // Server will start but tools will return helpful errors
+        return null;
+      }
+
+      // Other validation errors should still throw
       const messages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
       throw new Error(
         `Configuration validation failed:\n${messages.join('\n')}\n\n` +
