@@ -20,9 +20,23 @@ const AuthConfigSchema = z.object({
  * Returns config with optional token (allows server to start without token)
  */
 export function loadAuthConfig(): AuthConfig | null {
+  // Check if token is missing or a placeholder
+  const token = process.env.META_ACCESS_TOKEN;
+  const isTokenMissing = !token ||
+    token === '' ||
+    token === 'REPLACE_WITH_YOUR_TOKEN' ||
+    token === 'your_token_here' ||
+    token === 'paste_your_token_here';
+
+  if (isTokenMissing) {
+    // Return null to indicate no valid token configured
+    // Server will start but tools will return helpful errors
+    return null;
+  }
+
   try {
     const config = AuthConfigSchema.parse({
-      META_ACCESS_TOKEN: process.env.META_ACCESS_TOKEN,
+      META_ACCESS_TOKEN: token,
       META_APP_ID: process.env.META_APP_ID,
       META_APP_SECRET: process.env.META_APP_SECRET,
       META_API_VERSION: process.env.META_API_VERSION,
@@ -32,14 +46,6 @@ export function loadAuthConfig(): AuthConfig | null {
     return config;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Check if it's just a missing token
-      const tokenError = error.errors.find(err => err.path[0] === 'META_ACCESS_TOKEN');
-      if (tokenError && !process.env.META_ACCESS_TOKEN) {
-        // Return null to indicate no token configured
-        // Server will start but tools will return helpful errors
-        return null;
-      }
-
       // Other validation errors should still throw
       const messages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
       throw new Error(
